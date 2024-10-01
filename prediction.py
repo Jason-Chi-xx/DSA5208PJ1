@@ -36,7 +36,7 @@ def arg_parse():
     parser.add_argument("--standard", type=bool, default=True, help="whether the dataset is standardized")
     parser.add_argument("--sigma", type=float, default=1.0, help="parameter for Gaussian")
     parser.add_argument("--c", type=float, default=0.0, help="parameter for Polynomial")
-    parser.add_argument("--degree", type=float, default=3.0, help="parameter for Polynomial")
+    parser.add_argument("--degree", type=float, default=2.0, help="parameter for Polynomial")
     parser.add_argument("--do_parallel", type=bool, default=False, help="whether use MPI")
     args = parser.parse_args()
     return args
@@ -45,6 +45,7 @@ def arg_parse():
 if __name__ == "__main__":
     args = arg_parse()
     Dataset = SplitedDataset(args.data_root,standard=args.standard)
+    
     train_data, train_label, test_data, test_label = Dataset.get_data(shuffle=False)
     if args.do_parallel:
         comm = MPI.COMM_WORLD
@@ -52,6 +53,7 @@ if __name__ == "__main__":
         size = comm.Get_size()
     else:
         comm = None
+        size = 1
 
     print("data set length is :", len(train_data))
     max_len = (len(train_data) // size ) * size
@@ -60,7 +62,8 @@ if __name__ == "__main__":
     print("data set length is :", len(train_data))
     if args.do_parallel:
         train_data_local = np.array_split(train_data, size, axis=0)[rank]
-        # train_label = np.array_split(train_label, size, axis=0)[rank]
+    else:
+        train_data_local = train_data
     kernel = Kernel(args, comm)
     Krr = KernelRidgeRegression(kernel, args, comm)
     parameter_dict = {
@@ -73,7 +76,7 @@ if __name__ == "__main__":
     if not args.do_parallel or (args.do_parallel and rank) == 0:
         print(f"the training mse is : {train_mse}" )
 
-        # visualization(error_list=error_list)
+        visualization(error_list=error_list)
         
         test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
         print(f"the test mse is : {test_mse}")
