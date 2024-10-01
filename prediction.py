@@ -11,7 +11,7 @@ import argparse
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 from dataset import SplitedDataset
-from code.utils import Kernel, KernelRidgeRegression
+from utils import Kernel, KernelRidgeRegression
 import numpy as np
 from sklearn.kernel_ridge import KernelRidge
 import math
@@ -58,6 +58,9 @@ if __name__ == "__main__":
     train_data = train_data[:max_len]
     train_label = train_label[:max_len]
     print("data set length is :", len(train_data))
+    if args.do_parallel:
+        train_data_local = np.array_split(train_data, size, axis=0)[rank]
+        # train_label = np.array_split(train_label, size, axis=0)[rank]
     kernel = Kernel(args, comm)
     Krr = KernelRidgeRegression(kernel, args, comm)
     parameter_dict = {
@@ -65,12 +68,13 @@ if __name__ == "__main__":
         "c": args.c,
         "degree": args.degree
     }
-    train_mse, error_list = Krr.train(train_data, train_label, **parameter_dict)
+    train_mse, error_list = Krr.train(train_data_local, train_label, **parameter_dict)
 
     if not args.do_parallel or (args.do_parallel and rank) == 0:
         print(f"the training mse is : {train_mse}" )
 
         # visualization(error_list=error_list)
+        
         test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
         print(f"the test mse is : {test_mse}")
         error = (test_label - predicted_label) / test_label

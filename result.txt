@@ -1,0 +1,4 @@
+train_mse is : 3.1045529301933954e-15 
+test_mse is : 17665236164.72161 
+the average error is 0.2861942978746317 
+the std of error is 0.1555478358951008 

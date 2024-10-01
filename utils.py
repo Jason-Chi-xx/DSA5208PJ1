@@ -1,6 +1,6 @@
 import numpy as np
 from mpi4py import MPI
-
+LOCAL = True
 
 class Kernel:
     def __init__(self,args, comm=None):
@@ -17,7 +17,7 @@ class Kernel:
         if name == "Polynomial":
             kernel = self.get_poly_kernel(X1, X2, **parameters)
         return kernel
-
+    """
     def get_kernel_parallel(self, name, train_data, **parameters):
         # Step 2: Compute local kernel matrix
         def compute_local_kernel(X_local, X):
@@ -69,7 +69,53 @@ class Kernel:
         #     return full_kernel
         # else:
         #     return None
+    """
+    def get_kernel_parallel(self, name, train_data, **parameters):
+        # Step 2: Compute local kernel matrix
+        def compute_local_kernel(X_local, X):
+            return self.get_kernel(name, X_local, X, **parameters)
 
+        # Step 3: Gather kernel matrix from all processes
+        def gather_kernel_matrix(K_local, rank):
+            print('Len of K_local: ',len(K_local))
+            # K_local = np.hstack(K_local)
+            # print('Dim of K_local {} x {}'.format(K_local.shape[0],K_local.shape[1]))
+
+            print(f"Rank 0 is attempting to gather kernel matrices from Rank {rank}.")
+            recvbuf = self.comm.gather(K_local, root=0)
+            if rank == 0:
+                print(recvbuf)
+                print("rank 0 now")
+                return np.vstack([np.hstack(local_data) for local_data in recvbuf])
+            else:
+                return None
+
+        print(f"rank {self.rank} calculating kernel now")
+        if not LOCAL:
+            X_split = np.array_split(train_data, self.size, axis=0)
+            local_data = X_split[self.rank]
+        else:
+            local_data = train_data
+        local_kernel = [0] * self.size
+    
+        for round in range(self.size):
+            if LOCAL:
+                send_data = local_data.copy()
+                recv_data = np.empty_like(send_data)
+                self.comm.Sendrecv(send_data, dest=(self.rank + round) % self.size, recvbuf=recv_data, source=(self.rank - round) % self.size)
+            else:
+                recv_data = X_split[round]
+            
+            kernel_block = compute_local_kernel(local_data, recv_data)
+            print('Round: ', round)
+            print('Local Data:', local_data)
+            print('Received Data:', recv_data)        
+            print('Computed Kernel:', kernel_block)
+            local_kernel[(self.rank - round) % self.size] = kernel_block
+
+        # self.comm.barrier()
+        K_full = gather_kernel_matrix(local_kernel, self.rank)
+        return K_full
     def get_gaussian_kernel(self,X1, X2, **paramters):
         sigma = paramters.pop("sigma")
         dists = np.sum(X1**2, axis=1).reshape(-1, 1) + np.sum(X2**2, axis=1) - 2 * np.dot(X1, X2.T)
@@ -120,7 +166,7 @@ class KernelRidgeRegression:
             se = new_se
             iter += 1
         return alpha, error_list       
-    def conjugate_gradient_parallel(self, A, y, tol=1e-10, max_iter=1000):
+    def conjugate_gradient_parallel(self, A, y, tol=1e-5, max_iter=1000):
         A = self.comm.bcast(A, root=0)
         y = self.comm.bcast(y, root=0)
 
