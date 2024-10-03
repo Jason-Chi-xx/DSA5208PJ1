@@ -21,3 +21,5 @@ mpirun -n 4 prediction.py --data_root /path/to/your/data --name KernelName --do_
 ```
 you can change '4' into the cpu number you want to use. Setting do_parrallel to True enabling the mpi engagement.
 
+In this part, we parallelize the kernel computation and the conjugate gradient descent by splitting the data storage and matrix computation into multiple processes, which greatly reduce the memory usage in each process, thus improve the calculation speed. Notice that in this project we only test the algorithm with around 14000 data. So the advantage of using MPI upon speed may not that notable because it also adds the communication overhead between processes. 
+
