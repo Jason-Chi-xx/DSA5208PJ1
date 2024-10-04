@@ -15,11 +15,8 @@ class SplitedDataset:
             train_data_mean = self.train_data.mean(axis=0)
             train_data_std = np.std(self.train_data,axis=0)
             
-            test_data_mean = self.test_data.mean(axis=0)
-            test_data_std = np.std(self.test_data,axis=0)
-            
             self.train_data = (self.train_data - train_data_mean) / train_data_std
-            self.test_data = (self.test_data - test_data_mean) / test_data_std
+            self.test_data = (self.test_data - train_data_mean) / train_data_std
             
     def __len__(self):
         return len(self.dataset)
