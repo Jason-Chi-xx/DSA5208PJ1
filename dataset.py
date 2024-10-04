@@ -7,8 +7,12 @@ class SplitedDataset:
     def __init__(self, root, standard=False):
         self.dataset = pd.read_csv(root, sep="\t").to_numpy()
         train_percent = 0.7
+        np.random.seed(42)
+        indices = np.random.permutation(len(self.dataset))
         train_num = int(len(self.dataset) * 0.7)
-        trainset, testset = self.dataset[:train_num], self.dataset[train_num:]
+        train_indices = indices[:train_num]
+        test_indices = indices[train_num:]
+        trainset, testset = self.dataset[train_indices], self.dataset[test_indices]
         self.train_data, self.train_label = trainset[:, :-1],  trainset[:, -1]
         self.test_data, self.test_label = testset[:, :-1], testset[:, -1]
         if standard: 
