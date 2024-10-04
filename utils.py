@@ -1,5 +1,6 @@
 import numpy as np
 from mpi4py import MPI
+import matplotlib.pyplot as plt
 LOCAL = True
 
 class Kernel:
@@ -202,20 +203,167 @@ class KernelRidgeRegression:
         test_mse = np.mean((predicted_label - test_label) ** 2)
         return test_mse, predicted_label
     
-    def grid_search(self,train_data, train_label, test_data, test_label, **parameters):
-        optimal_parameter = {self.kernel:{}}
+    def grid_search(self, train_data, train_label, validation_data, validation_label, **parameters):
+        optimal_parameter = {self.kernel_name: {}}
+        lambd_space = [10**i for i in range(-5, 4)]
+
         if self.kernel_name == "Gaussian":
-            sigma_space = np.linspace(-5, 5, 0.1)
-            min_mse = 0.
-            for sigma in sigma_space:
-                train_mse, _ = self.train(train_data, train_label, sigma=sigma)
-                test_mse = self.test(train_data, test_data, test_label, sigma=sigma)
-                if test_mse < min_mse:
-                     min_mse = test_mse
-                     optimal_parameter[self.kernel_name]["sigma"] = sigma
+            sigma_space = np.logspace(-2, 2, 10)  # 10 values between 0.01 and 100 on a logarithmic scale
+            min_mse = float('inf')
+
+            # Initialize lists to store values for plotting
+            sigma_values = []
+            lambd_values = []
+            validation_mses = []
+
+            with open(f'{self.kernel_name}_girdsearch_results.txt', 'w') as f:
+                for sigma in sigma_space:
+                    for lambd in lambd_space:
+                        parameters['sigma'] = sigma
+                        parameters['lambd'] = lambd
+                        train_mse, _ = self.train(train_data, train_label, **parameters)
+                        validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
+
+                        # Store values for plotting
+                        sigma_values.append(sigma)
+                        lambd_values.append(lambd)
+                        validation_mses.append(validation_mse)
+
+                        f.write(f"Parameters: sigma={sigma}, lambd={lambd}\n")
+                        f.write(f"Train MSE: {train_mse}\n")
+                        f.write(f"Validation MSE: {validation_mse}\n\n")
+                        f.write("---------------------------------------\n")
+
+                        if validation_mse < min_mse:
+                            min_mse = validation_mse
+                            optimal_parameter[self.kernel_name]["sigma"] = sigma
+                            optimal_parameter[self.kernel_name]["lambd"] = lambd
+
+            # Apply logarithmic transformation to the validation MSE values
+            log_validation_mses = np.log10(validation_mses)
+
+            # Apply logarithmic transformation to the lambda values
+            log_lambd_values = np.log10(lambd_values)
+
+            # Apply logarithmic transformation to the sigma values
+            log_sigma_mses = np.log10(sigma_values)
+
+            # Create a 3D scatter plot of the log-transformed validation MSE values
+            fig = plt.figure(figsize=(10, 6))
+            ax = fig.add_subplot(111, projection='3d')
+
+            scatter = ax.scatter(log_sigma_mses, log_lambd_values, log_validation_mses, c=log_validation_mses, cmap='viridis')
+
+            ax.set_xlabel('Log(Sigma)')
+            ax.set_ylabel('Log(Lambda)')
+            ax.set_zlabel('Log(Validation MSE)')
+            ax.set_title('3D Scatter Plot of Log-Transformed Validation MSE')
+
+            # Add a color bar for reference
+            fig.colorbar(scatter)
+
+            plt.savefig(f'{self.kernel_name}_{self.standardized}_log_validation_mse_3d_scatter_plot.png')
+            plt.close()
+
         if self.kernel_name == "Linear":
-            pass
+            lambd_space = [10 ** i for i in range(-9, 3)]
+            min_mse = float('inf')
+
+            lambd_values = []
+            validation_mses = []
+
+            with open(f'{self.kernel_name}_girdsearch_results.txt', 'w') as f:
+                for lambd in lambd_space:
+                    parameters['lambd'] = lambd
+                    train_mse, _ = self.train(train_data, train_label, **parameters)
+                    validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
+
+                    lambd_values.append(lambd)
+                    validation_mses.append(validation_mse)
+
+                    f.write(f"Parameters: lambd={lambd}\n")
+                    f.write(f"Train MSE: {train_mse}\n")
+                    f.write(f"Validation MSE: {validation_mse}\n\n")
+                    f.write("---------------------------------------\n")
+
+                    if validation_mse < min_mse:
+                        min_mse = validation_mse
+                        optimal_parameter[self.kernel_name]["lambd"] = lambd
+
+            plt.style.use('seaborn-darkgrid')
+
+            # Create the plot
+            plt.figure(figsize=(8, 6))
+            plt.plot(np.log10(lambd_values), np.log10(validation_mses), marker='o', linestyle='-', color='b',
+                     markersize=8, linewidth=2)
+
+            plt.grid(True, which="both", ls="--", linewidth=0.5)
+            plt.title('log(Validation MSE) vs log(Lambda)', fontsize=14)
+            plt.xlabel('log(Lambda)', fontsize=12)
+            plt.ylabel('log(Validation MSE)', fontsize=12)
+
+            plt.savefig('validation_mse_vs_lambda_loglog.png', dpi=300, bbox_inches='tight')
+
         if self.kernel_name == "Polynomial":
-            pass
-        
+            lambd_space = [10 ** i for i in range(-4, 3)]
+            degree_space = [3]
+            c_space = [0.1, 1, 10, 100]
+            min_mse = float('inf')
+
+            c_values = []
+            lambd_values = []
+            validation_mses = []
+
+            with open(f'{self.kernel_name}_girdsearch_results.txt', 'w') as f:
+                for degree in degree_space:
+                    for c in c_space:
+                        for lambd in lambd_space:
+
+                            parameters['degree'] = degree
+                            parameters['c'] = c
+                            parameters['lambd'] = lambd
+
+                            train_mse, _ = self.train(train_data, train_label, **parameters)
+                            validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
+
+                            c_values.append(c)
+                            lambd_values.append(lambd)
+                            validation_mses.append(validation_mse)
+
+                            f.write(f"Parameters: degree={degree}, c={c}, lambd={lambd}\n")
+                            f.write(f"Train MSE: {train_mse}\n")
+                            f.write(f"Validation MSE: {validation_mse}\n\n")
+                            f.write("---------------------------------------\n")
+
+                            if validation_mse < min_mse:
+                                min_mse = validation_mse
+                                optimal_parameter[self.kernel_name]["lambd"] = lambd
+                                optimal_parameter[self.kernel_name]["degree"] = degree
+                                optimal_parameter[self.kernel_name]["c"] = c
+
+            log_validation_mses = np.log10(validation_mses)
+
+            log_lambd_values = np.log10(lambd_values)
+
+            log_c_values = np.log10(c_values)
+
+            fig = plt.figure(figsize=(10, 6))
+            ax = fig.add_subplot(111, projection='3d')
+
+            # Plot the scatter points with the log-transformed MSE values
+            scatter = ax.scatter(log_c_values, log_lambd_values, log_validation_mses,
+                                c=log_validation_mses, cmap='viridis')
+
+            ax.set_xlabel('Log(c)')
+            ax.set_ylabel('Log(Lambda)')
+            ax.set_zlabel('Log(Validation MSE)')
+            ax.set_title('3D Scatter Plot of Log-Transformed Validation MSE')
+
+            # Add a color bar for reference
+            fig.colorbar(scatter)
+
+            plt.savefig(
+                f'{self.kernel_name}_{self.standardized}_log_validation_mse_3d_scatter_plot.png')
+            plt.close()
+
         return optimal_parameter
