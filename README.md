@@ -23,3 +23,5 @@ you can change '4' into the cpu number you want to use. Setting do_parrallel to 
 
 In this part, we parallelize the kernel computation and the conjugate gradient descent by splitting the data storage and matrix computation into multiple processes, which greatly reduce the memory usage in each process, thus improve the calculation speed. Notice that in this project we only test the algorithm with around 14000 data. So the advantage of using MPI upon speed may not that notable because it also adds the communication overhead between processes. 
 
+## Grid Search
+We conduct grid search to find the optimal parameters combination which yeilds best results. You can add '--do_grid_search True' to do it.
