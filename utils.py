@@ -67,6 +67,7 @@ class KernelRidgeRegression:
         self.kernel_name = args.name
         self.lambd = args.lambd
         self.do_parallel=args.do_parallel
+        self.standardized = args.standard
         if args.do_parallel:
             self.comm = comm
             self.rank = self.comm.Get_rank()
@@ -166,6 +167,10 @@ class KernelRidgeRegression:
         else:
             return None, None
     def train(self, train_data, train_label, **parameters):
+        if self.standardized == True:
+            self.train_label_mean = train_label.mean(axis=0)
+            self.train_label_std = np.std(train_label, axis=0)
+            train_label = (train_label - self.train_label_mean) / self.train_label_std
         if not self.do_parallel:
             n_samples = train_data.shape[0]
             K = self.kernel.get_kernel(self.kernel_name, train_data, train_data, **parameters)
@@ -188,7 +193,9 @@ class KernelRidgeRegression:
             if self.rank==0:
                 self.alpha = alpha
                 predicted_label = np.dot(K, alpha)
-
+                if self.standardized == True:
+                    train_label = train_label * self.train_label_std + self.train_label_mean
+                    predicted_label = predicted_label * self.train_label_std + self.train_label_mean
                 train_mse = np.mean((predicted_label - train_label) ** 2)
                 return train_mse, error_list
             else:
@@ -197,6 +204,8 @@ class KernelRidgeRegression:
     def test(self, train_data, test_data, test_label,**parameters):
         K_test = self.kernel.get_kernel(self.kernel_name, test_data, train_data, **parameters)
         predicted_label = np.dot(K_test, self.alpha)
+        if self.standardized == True:
+            predicted_label = predicted_label * self.train_label_std + self.train_label_mean
         print(predicted_label)
         print(test_label)
         # print(predicted_label - test_label)
@@ -239,17 +248,12 @@ class KernelRidgeRegression:
                             optimal_parameter[self.kernel_name]["sigma"] = sigma
                             optimal_parameter[self.kernel_name]["lambd"] = lambd
 
-            # Apply logarithmic transformation to the validation MSE values
             log_validation_mses = np.log10(validation_mses)
-
-            # Apply logarithmic transformation to the lambda values
             log_lambd_values = np.log10(lambd_values)
-
-            # Apply logarithmic transformation to the sigma values
             log_sigma_mses = np.log10(sigma_values)
 
-            # Create a 3D scatter plot of the log-transformed validation MSE values
-            fig = plt.figure(figsize=(10, 6))
+            
+            fig = plt.figure(figsize=(10, 6)) # Create a 3D scatter plot of the log-transformed validation MSE values
             ax = fig.add_subplot(111, projection='3d')
 
             scatter = ax.scatter(log_sigma_mses, log_lambd_values, log_validation_mses, c=log_validation_mses, cmap='viridis')
@@ -259,7 +263,6 @@ class KernelRidgeRegression:
             ax.set_zlabel('Log(Validation MSE)')
             ax.set_title('3D Scatter Plot of Log-Transformed Validation MSE')
 
-            # Add a color bar for reference
             fig.colorbar(scatter)
 
             plt.savefig(f'{self.kernel_name}_{self.standardized}_log_validation_mse_3d_scatter_plot.png')
@@ -350,7 +353,6 @@ class KernelRidgeRegression:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(111, projection='3d')
 
-            # Plot the scatter points with the log-transformed MSE values
             scatter = ax.scatter(log_c_values, log_lambd_values, log_validation_mses,
                                 c=log_validation_mses, cmap='viridis')
 
@@ -359,7 +361,6 @@ class KernelRidgeRegression:
             ax.set_zlabel('Log(Validation MSE)')
             ax.set_title('3D Scatter Plot of Log-Transformed Validation MSE')
 
-            # Add a color bar for reference
             fig.colorbar(scatter)
 
             plt.savefig(

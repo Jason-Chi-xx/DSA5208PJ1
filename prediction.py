@@ -38,6 +38,7 @@ def arg_parse():
     parser.add_argument("--c", type=float, default=0.0, help="parameter for Polynomial")
     parser.add_argument("--degree", type=float, default=2.0, help="parameter for Polynomial")
     parser.add_argument("--do_parallel", type=bool, default=False, help="whether use MPI")
+    parser.add_argument("--do_grid_search", type=bool, default=False, help="whether do grid search")
     args = parser.parse_args()
     return args
 
@@ -91,3 +92,52 @@ if __name__ == "__main__":
             f.write(f"test_mse is : {test_mse} \n")
             f.write(f"the average error is {mean_error} \n")
             f.write(f"the std of error is {std_error} \n")
+    # grid search
+    if args.do_grid_search == True:
+        train_data_split, validation_data, train_label_split, validation_label = train_test_split(
+            train_data,
+            train_label,
+            test_size=0.2857,  # 2 / (5 + 2) = 0.2857
+            random_state=42
+        )
+
+        optimal_parameter = Krr.grid_search(train_data_split, train_label_split, validation_data, validation_label, **parameter_dict)
+        print(f"the optimal parameters after the grid search are {optimal_parameter}")
+
+        if args.name == "Gaussian":
+            parameter_dict["sigma"] = optimal_parameter["Gaussian"]["sigma"]
+            parameter_dict["lambd"] = optimal_parameter["Gaussian"]["lambd"]
+
+        if args.name == "Linear":
+            parameter_dict["lambd"] = optimal_parameter["Linear"]["lambd"]
+
+        if args.name == "Polynomial":
+            parameter_dict["degree"] = optimal_parameter["Polynomial"]["degree"]
+            parameter_dict["c"] = optimal_parameter["Polynomial"]["c"]
+            parameter_dict["lambd"] = optimal_parameter["Polynomial"]["lambd"]
+
+        train_mse, error_list = Krr.train(train_data, train_label, **parameter_dict)
+
+        if not args.do_parallel or (args.do_parallel and rank == 0):
+            print(f"the training mse is : {train_mse}")
+            print(f"the training root mse is : {math.sqrt(train_mse)}")
+
+            # visualization(error_list=error_list)
+            test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
+            print(f"the test mse is : {test_mse}")
+            print(f"the test root mse is : {math.sqrt(test_mse)}")
+            error = (test_label - predicted_label) / test_label
+            mean_error = np.mean(error)
+            print(f"the average test error is : {mean_error}")
+            std_error = np.mean((error - mean_error) ** 2)
+            print(f"the std of error is {std_error}")
+
+            with open(f"optimal result_{args.name}.txt", 'w') as f:
+
+                f.write(f"the optimal parameters after the grid search are : {optimal_parameter} \n")
+                f.write(f"train_mse is : {train_mse} \n")
+                f.write(f"train_root_mse is : {math.sqrt(train_mse)} \n")
+                f.write(f"test_mse is : {test_mse} \n")
+                f.write(f"test_root_mse is : {math.sqrt(test_mse)} \n")
+                f.write(f"the average error is {mean_error} \n")
+                f.write(f"the std of error is {std_error} \n")
