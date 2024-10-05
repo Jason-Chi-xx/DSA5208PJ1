@@ -61,7 +61,7 @@ class KernelRidgeRegression:
             self.comm = comm
             self.rank = self.comm.Get_rank()
             self.size = self.comm.Get_size()
-    def conjugate_gradient(self, A, y, threshold=1e-2):
+    def conjugate_gradient(self, A, y, threshold=5.):
         iter = 0
         n = y.shape[0]
         # Initialization
@@ -135,6 +135,7 @@ class KernelRidgeRegression:
         else:
             return alpha, None
     def train(self, train_data, train_label, **parameters):
+        self.lambd = parameters.pop("lambd")
         if self.standardized == True:
             self.train_label_mean = train_label.mean(axis=0)
             self.train_label_std = np.std(train_label, axis=0)
@@ -298,9 +299,9 @@ class KernelRidgeRegression:
             plt.savefig('validation_mse_vs_lambda_loglog.png', dpi=300, bbox_inches='tight')
 
         if self.kernel_name == "Polynomial":
-            lambd_space = [10 ** i for i in range(-4, 3)]
+            lambd_space = [10 ** i for i in range(0, 2)]
             degree_space = [3]
-            c_space = [0.1, 1, 10, 100]
+            c_space = [1, 10]
             min_mse = float('inf')
 
             c_values = []
@@ -316,7 +317,7 @@ class KernelRidgeRegression:
                             parameters['c'] = c
                             parameters['lambd'] = lambd
 
-                            train_mse, _ = self.train(train_data, train_label, **parameters)
+                            error_list = self.train(train_data, train_label, **parameters)
                             validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
 
                             c_values.append(c)
@@ -324,7 +325,6 @@ class KernelRidgeRegression:
                             validation_mses.append(validation_mse)
 
                             f.write(f"Parameters: degree={degree}, c={c}, lambd={lambd}\n")
-                            f.write(f"Train MSE: {train_mse}\n")
                             f.write(f"Validation MSE: {validation_mse}\n\n")
                             f.write("---------------------------------------\n")
 

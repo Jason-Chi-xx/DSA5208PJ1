@@ -15,6 +15,7 @@ from utils import Kernel, KernelRidgeRegression
 import numpy as np
 from sklearn.kernel_ridge import KernelRidge
 import math
+from sklearn.model_selection import train_test_split
 
 
 def visualization(error_list):
@@ -68,7 +69,8 @@ if __name__ == "__main__":
     parameter_dict = {
         "sigma": args.sigma,
         "c": args.c,
-        "degree": args.degree
+        "degree": args.degree, 
+        "lambd": args.lambd
     }
     error_list = Krr.train(train_data, train_label, **parameter_dict)
     test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
@@ -111,11 +113,9 @@ if __name__ == "__main__":
             parameter_dict["c"] = optimal_parameter["Polynomial"]["c"]
             parameter_dict["lambd"] = optimal_parameter["Polynomial"]["lambd"]
 
-        train_mse, error_list = Krr.train(train_data, train_label, **parameter_dict)
+        error_list = Krr.train(train_data, train_label, **parameter_dict)
 
         if not args.do_parallel or (args.do_parallel and rank == 0):
-            print(f"the training mse is : {train_mse}")
-            print(f"the training root mse is : {math.sqrt(train_mse)}")
 
             # visualization(error_list=error_list)
             test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
@@ -130,8 +130,6 @@ if __name__ == "__main__":
             with open(f"optimal result_{args.name}.txt", 'w') as f:
 
                 f.write(f"the optimal parameters after the grid search are : {optimal_parameter} \n")
-                f.write(f"train_mse is : {train_mse} \n")
-                f.write(f"train_root_mse is : {math.sqrt(train_mse)} \n")
                 f.write(f"test_mse is : {test_mse} \n")
                 f.write(f"test_root_mse is : {math.sqrt(test_mse)} \n")
                 f.write(f"the average error is {mean_error} \n")
