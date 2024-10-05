@@ -221,7 +221,7 @@ class KernelRidgeRegression:
                     for lambd in lambd_space:
                         parameters['sigma'] = sigma
                         parameters['lambd'] = lambd
-                        train_mse, _ = self.train(train_data, train_label, **parameters)
+                        error_list = self.train(train_data, train_label, **parameters)
                         validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
 
                         # Store values for plotting
@@ -230,7 +230,6 @@ class KernelRidgeRegression:
                         validation_mses.append(validation_mse)
 
                         f.write(f"Parameters: sigma={sigma}, lambd={lambd}\n")
-                        f.write(f"Train MSE: {train_mse}\n")
                         f.write(f"Validation MSE: {validation_mse}\n\n")
                         f.write("---------------------------------------\n")
 
@@ -269,14 +268,13 @@ class KernelRidgeRegression:
             with open(f'{self.kernel_name}_girdsearch_results.txt', 'w') as f:
                 for lambd in lambd_space:
                     parameters['lambd'] = lambd
-                    train_mse, _ = self.train(train_data, train_label, **parameters)
+                    error_list = self.train(train_data, train_label, **parameters)
                     validation_mse, _ = self.test(train_data, validation_data, validation_label, **parameters)
 
                     lambd_values.append(lambd)
                     validation_mses.append(validation_mse)
 
                     f.write(f"Parameters: lambd={lambd}\n")
-                    f.write(f"Train MSE: {train_mse}\n")
                     f.write(f"Validation MSE: {validation_mse}\n\n")
                     f.write("---------------------------------------\n")
 

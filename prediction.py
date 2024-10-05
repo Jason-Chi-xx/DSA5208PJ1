@@ -34,12 +34,12 @@ def arg_parse():
     parser.add_argument("--name",type=str, default="Gaussian", help="kernel name")
     parser.add_argument("--lambd",type=float, default=0.5, help="path of dataset")
     parser.add_argument("--data_root",type=str, default=None, required=True, help="path of dataset")
-    parser.add_argument("--standard", type=bool, default=False, help="whether the dataset is standardized")
+    parser.add_argument("--standard", action='store_true', help="whether the dataset is standardized")
     parser.add_argument("--sigma", type=float, default=2.0, help="parameter for Gaussian")
     parser.add_argument("--c", type=float, default=0.0, help="parameter for Polynomial")
     parser.add_argument("--degree", type=float, default=2.0, help="parameter for Polynomial")
-    parser.add_argument("--do_parallel", type=bool, default=False, help="whether use MPI")
-    parser.add_argument("--do_grid_search", type=bool, default=False, help="whether do grid search")
+    parser.add_argument("--do_parallel", action='store_true', help="whether use MPI")
+    parser.add_argument("--do_grid_search", action='store_true', help="whether do grid search")
     args = parser.parse_args()
     return args
 
