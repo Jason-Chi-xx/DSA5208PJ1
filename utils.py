@@ -61,7 +61,7 @@ class KernelRidgeRegression:
             self.comm = comm
             self.rank = self.comm.Get_rank()
             self.size = self.comm.Get_size()
-    def conjugate_gradient(self, A, y, threshold=5.):
+    def conjugate_gradient(self, A, y, threshold=1e-2):
         iter = 0
         n = y.shape[0]
         # Initialization
@@ -88,7 +88,7 @@ class KernelRidgeRegression:
             se = new_se
             iter += 1
         return alpha, error_list       
-    def conjugate_gradient_parallel(self, A_local, y_local, tol=10, max_iter=1000):
+    def conjugate_gradient_parallel(self, A_local, y_local, tol=1e-2, max_iter=1000):
 
         self.tol = tol
         self.max_iter = max_iter
@@ -173,11 +173,10 @@ class KernelRidgeRegression:
             self.alpha = np.load(f'alpha.npy')
 
     def predict(self, train_data, pred_data, **parameters):
+        K = self.kernel.get_kernel(self.kernel_name, pred_data, train_data, **parameters)
         if not self.do_parallel:
-            K = self.kernel.get_kernel(self.kernel_name, pred_data, train_data, **parameters)
             predicted_label = np.dot(K, self.alpha)
         else:
-            K = self.kernel.get_kernel_parallel(self.kernel_name, pred_data, train_data, **parameters)
             predicted_label = np.dot(K, self.alpha)
             predicted_label = self.comm.reduce(predicted_label, op=MPI.SUM, root=0)
         return predicted_label

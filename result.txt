@@ -1,3 +1,3 @@
-test_mse is : 3134979729.104713 
-the average error is 0.06790557811063548 
-the std of error is 0.17217477818702018 
+test_mse is : 3122361224.015814 
+the average error is 0.06337751291399692 
+the std of error is 0.16568282098136905 
