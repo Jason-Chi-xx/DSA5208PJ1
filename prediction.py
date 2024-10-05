@@ -31,10 +31,10 @@ def arg_parse():
     parser = argparse.ArgumentParser(description="Parameters for House value prediction")
     
     parser.add_argument("--name",type=str, default="Gaussian", help="kernel name")
-    parser.add_argument("--lambd",type=float, default=1.0, help="path of dataset")
+    parser.add_argument("--lambd",type=float, default=0.5, help="path of dataset")
     parser.add_argument("--data_root",type=str, default=None, required=True, help="path of dataset")
-    parser.add_argument("--standard", type=bool, default=True, help="whether the dataset is standardized")
-    parser.add_argument("--sigma", type=float, default=1.0, help="parameter for Gaussian")
+    parser.add_argument("--standard", type=bool, default=False, help="whether the dataset is standardized")
+    parser.add_argument("--sigma", type=float, default=2.0, help="parameter for Gaussian")
     parser.add_argument("--c", type=float, default=0.0, help="parameter for Polynomial")
     parser.add_argument("--degree", type=float, default=2.0, help="parameter for Polynomial")
     parser.add_argument("--do_parallel", type=bool, default=False, help="whether use MPI")
@@ -46,7 +46,6 @@ def arg_parse():
 if __name__ == "__main__":
     args = arg_parse()
     Dataset = SplitedDataset(args.data_root,standard=args.standard)
-    
     train_data, train_label, test_data, test_label = Dataset.get_data(shuffle=False)
     if args.do_parallel:
         comm = MPI.COMM_WORLD
@@ -60,11 +59,10 @@ if __name__ == "__main__":
     max_len = (len(train_data) // size ) * size
     train_data = train_data[:max_len]
     train_label = train_label[:max_len]
-    print("data set length is :", len(train_data))
     if args.do_parallel:
-        train_data_local = np.array_split(train_data, size, axis=0)[rank]
-    else:
-        train_data_local = train_data
+        train_data = np.array_split(train_data, size, axis=0)[rank]
+        train_label = np.array_split(train_label, size, axis=0)[rank]
+        print("local dataset size:", len(train_data))
     kernel = Kernel(args, comm)
     Krr = KernelRidgeRegression(kernel, args, comm)
     parameter_dict = {
@@ -72,23 +70,20 @@ if __name__ == "__main__":
         "c": args.c,
         "degree": args.degree
     }
-    train_mse, error_list = Krr.train(train_data_local, train_label, **parameter_dict)
-
-    if not args.do_parallel or (args.do_parallel and rank) == 0:
-        print(f"the training mse is : {train_mse}" )
-
+    error_list = Krr.train(train_data, train_label, **parameter_dict)
+    test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
+    if not args.do_parallel or (args.do_parallel and rank == 0):
         visualization(error_list=error_list)
         
-        test_mse, predicted_label = Krr.test(train_data, test_data, test_label, **parameter_dict)
         print(f"the test mse is : {test_mse}")
-        error = (test_label - predicted_label) / test_label
-        mean_error = np.mean(error)
+        print(f"the test root mse is : {math.sqrt(test_mse)}")
+        error = (test_label - predicted_label) / test_label  
+        mean_error = np.abs(np.mean(error))
         print(f"the average test error is : {mean_error}")
         std_error = np.mean((error - mean_error) ** 2)
         print(f"the std of error is {std_error}")
         with open("result.txt", 'w') as f:
 
-            f.write(f"train_mse is : {train_mse} \n")
             f.write(f"test_mse is : {test_mse} \n")
             f.write(f"the average error is {mean_error} \n")
             f.write(f"the std of error is {std_error} \n")
